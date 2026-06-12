@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 
 from dotenv import load_dotenv
 from fastapi import BackgroundTasks, FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 import requests
 
 from alpaca_client import AlpacaClient
@@ -33,6 +34,19 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Sentinel Invest", version="0.1.0", lifespan=lifespan)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://dashboard.sentinelprime.org",
+        "https://invest.sentinelprime.org",
+        "http://localhost:3002",
+        "http://127.0.0.1:3002",
+    ],
+    allow_origin_regex=r"https://.*\.sentinelprime\.org",
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["*"],
+)
 
 
 @app.get("/health")
