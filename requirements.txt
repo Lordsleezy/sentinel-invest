@@ -6,4 +6,5 @@ beautifulsoup4==4.12.3
 apscheduler==3.10.4
 python-dotenv==1.0.1
 pandas==2.2.3
-numpy==1.26.4
+numpy==1.26.4; python_version < "3.13"
+numpy==2.2.6; python_version >= "3.13"
