@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import os
+import logging
 from datetime import datetime, timezone
 from uuid import uuid4
 
 import requests
+
+logger = logging.getLogger("sentinel_invest.alpaca")
 
 
 class AlpacaClient:
@@ -13,6 +16,12 @@ class AlpacaClient:
         self.secret = os.getenv("ALPACA_SECRET_KEY", "")
         self.base_url = os.getenv("ALPACA_BASE_URL", "https://paper-api.alpaca.markets").rstrip("/")
         self.mock_orders: list[dict] = []
+        if not self.configured:
+            logger.warning(
+                "ALPACA_API_KEY/ALPACA_SECRET_KEY missing; paper trading is running in mock mode."
+            )
+        else:
+            logger.info("Alpaca paper trading configured with %s", self.base_url)
 
     @property
     def configured(self) -> bool:

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import os
+import logging
+import time
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
@@ -15,6 +17,11 @@ from scanner import jobs, market_pulse, scan_market, start_scan_job, watchlist
 from scheduler import start_scheduler, stop_scheduler
 
 load_dotenv()
+logging.basicConfig(
+    level=os.getenv("LOG_LEVEL", "INFO"),
+    format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+)
+logger = logging.getLogger("sentinel_invest")
 alpaca = AlpacaClient()
 
 
@@ -65,8 +72,17 @@ def news(ticker: str):
 
 @app.post("/scan")
 def scan(background_tasks: BackgroundTasks):
-    job_id = start_scan_job()
-    return {"job_id": job_id}
+    start = time.time()
+    try:
+        candidates = scan_market()
+    except Exception as exc:
+        raise HTTPException(502, f"Scan failed: {exc}") from exc
+    return {
+        "status": "complete",
+        "candidates_found": len(candidates),
+        "top_signals": candidates,
+        "duration_seconds": round(time.time() - start, 2),
+    }
 
 
 @app.get("/scan/{job_id}")

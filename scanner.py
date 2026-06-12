@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import concurrent.futures
+import logging
+import threading
 import time
 from datetime import datetime, timezone
 from uuid import uuid4
@@ -11,6 +13,9 @@ import yfinance as yf
 
 from news import latest_news
 from signals import bollinger, macd, rsi
+
+logger = logging.getLogger("sentinel_invest.scanner")
+_YFINANCE_LOCK = threading.Lock()
 
 DEFAULT_WATCHLIST = ["NVDA", "AAPL", "TSLA", "MSFT", "AMD", "BTC-USD", "ETH-USD", "SPY", "QQQ"]
 SCAN_UNIVERSE = [
@@ -25,7 +30,8 @@ latest_signals_cache: list[dict] = []
 
 
 def _history(ticker: str, period: str = "6mo", interval: str = "1d") -> pd.DataFrame:
-    return yf.download(ticker, period=period, interval=interval, auto_adjust=True, progress=False, threads=False)
+    with _YFINANCE_LOCK:
+        return yf.download(ticker, period=period, interval=interval, auto_adjust=True, progress=False, threads=False)
 
 
 def _col(hist: pd.DataFrame, name: str) -> pd.Series:
@@ -119,6 +125,7 @@ def analyze_ticker(ticker: str) -> dict | None:
             "rr_ratio": round(reward / risk, 2) if risk else 0,
         }
     except Exception:
+        logger.exception("failed to analyze ticker %s", ticker)
         return None
 
 
@@ -213,9 +220,12 @@ def overnight_analysis() -> list[dict]:
 
 def crypto_scan() -> dict:
     try:
-        return requests.get(
+        data = requests.get(
             "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd&include_24hr_change=true",
             timeout=10,
         ).json()
+        logger.info("crypto_scan CoinGecko response: %s", data)
+        return data
     except Exception:
+        logger.exception("crypto_scan CoinGecko request failed")
         return {}
